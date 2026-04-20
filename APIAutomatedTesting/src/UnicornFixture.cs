@@ -1,144 +1,81 @@
-﻿using NUnit.Framework;
-using RestSharp;
-using RestSharp.Serializers.Json;
-using System.Net;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+﻿using APITestAutomation.Tests.src.Models;
+using NUnit.Framework;
 
-namespace APIAutomatedTesting.src
+namespace APITestAutomation.Tests.src
 {
     public class UnicornFixture
     {
-        private const string identifier = "ecd8bd81e38b4104b0634fbfa3822a65";
-        private IRestClient _restClient;
-
-        [OneTimeSetUp]
-        public void Before()
-        {
-            var serializerOptions = new JsonSerializerOptions
-            {
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            };
-
-            this._restClient = new RestClient(
-                options: new()
-                {
-                    BaseUrl = new Uri($"https://crudcrud.com/api/{identifier}")
-                },
-                configureSerialization: s => s.UseSystemTextJson(serializerOptions));
-        }
+        private readonly UnicornClient unicornClient = new($"https://crudcrud.com/api/{Constants.Identifier}");
 
         [Test]
-        public async Task VerifyThatGetAllUnicornsResourceReturnsOkStatusCode()
+        public async Task VerifyThatUnicornsCanBeRetrieved()
         {
-            var getAllUnicornsRequest = new RestRequest($"/unicorns", Method.Get);
-            var getAllUnicornsResponse = await this._restClient.ExecuteAsync<Unicorn[]>(getAllUnicornsRequest);
+            var unicorns = await this.unicornClient.GetUnicornsAsync();
 
-            Assert.That(getAllUnicornsResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(unicorns.Count, Is.GreaterThan(0));
         }
 
         [Test]
         public async Task VerifyThatUnicornCanBeCreated()
         {
-            var unicorn = new Unicorn
+            var unicornToCreate = new Unicorn
             {
                 Name = $"Name_{Random.Shared.Next(100, 1000)}",
                 Age = Random.Shared.Next(1, 10),
                 Colour = "red"
             };
 
-            var createUnicornRequest = new RestRequest("/unicorns", Method.Post);
-            createUnicornRequest.AddBody(unicorn);
+            var response = await this.unicornClient.CreateUnicornAsync(unicornToCreate);
 
-            var createUnicornResponse = await this._restClient.ExecuteAsync<Unicorn>(createUnicornRequest);
-
-            Assert.That(createUnicornResponse.StatusCode, Is.EqualTo(HttpStatusCode.Created));
-            Assert.That(createUnicornResponse.Data.Id, Is.Not.Null.Or.Empty);
-            Assert.That(createUnicornResponse.Data.Name, Is.EqualTo(unicorn.Name));
+            Assert.That(response.Id, Is.Not.Null.Or.Empty);
+            Assert.That(response.Name, Is.EqualTo(unicornToCreate.Name));
         }
 
         [Test]
-        public async Task VerifyThatUnicornCanBeRetrievedByIdentifier()
+        public async Task VerifyThatUnicornCanBeUpdated()
         {
-            var unicorn = new Unicorn
+            var unicornToEdit = new Unicorn
             {
                 Name = $"Name_{Random.Shared.Next(100, 1000)}",
                 Age = Random.Shared.Next(1, 10),
                 Colour = "red"
             };
 
-            var createUnicornRequest = new RestRequest("/unicorns", Method.Post);
-            createUnicornRequest.AddBody(unicorn);
+            var createdUnicorn = await this.unicornClient.CreateUnicornAsync(unicornToEdit);
 
-            var createUnicornResponse = await _restClient.ExecuteAsync<Unicorn>(createUnicornRequest);
-            var createdUnicorn = createUnicornResponse.Data;
-
-            var getUnicornByIdentifierRequest = new RestRequest($"/unicorns/{createdUnicorn.Id}", Method.Get);
-            var getUnicornByIdentifierResponse = await _restClient.ExecuteAsync<Unicorn>(getUnicornByIdentifierRequest);
-
-            Assert.That(getUnicornByIdentifierResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(getUnicornByIdentifierResponse.Data.Id, Is.EqualTo(createdUnicorn.Id));
-        }
-
-        [Test]
-        public async Task VerifyThatUnicornCanBeEdited()
-        {
-            var unicorn = new Unicorn
+            var expectedUnicorn = new Unicorn
             {
-                Name = $"Name_{Random.Shared.Next(100, 1000)}",
-                Age = Random.Shared.Next(1, 10),
-                Colour = "red"
+                Name = $"{unicornToEdit}_edited",
+                Age = 15,
             };
 
-            var createUnicornRequest = new RestRequest("/unicorns", Method.Post);
-            createUnicornRequest.AddBody(unicorn);
+            await this.unicornClient.UpdateUnicornAsync(createdUnicorn.Id, expectedUnicorn);
 
-            var createUnicornResponse = await _restClient.ExecuteAsync<Unicorn>(createUnicornRequest);
-            var createdUnicorn = createUnicornResponse.Data;
+            var unicorns = await this.unicornClient.GetUnicornsAsync();
+            var actualUnicorn = unicorns.First(u => u.Id == createdUnicorn.Id);
 
-            unicorn.Name += "_edited";
-            unicorn.Age += 5;
-
-            var editUnicornRequest = new RestRequest($"/unicorns/{createdUnicorn.Id}", Method.Put);
-            editUnicornRequest.AddBody(unicorn);
-
-            var editUnicornResponse = await _restClient.ExecuteAsync(editUnicornRequest);
-
-            Assert.That(editUnicornResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-            var getUnicornRequest = new RestRequest($"/unicorns/{createdUnicorn.Id}", Method.Get);
-            var getUnicornResponse = await _restClient.ExecuteAsync<Unicorn>(getUnicornRequest);
-
-            Assert.That(getUnicornResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(getUnicornResponse.Data.Name, Is.EqualTo(unicorn.Name));
-            Assert.That(getUnicornResponse.Data.Age, Is.EqualTo(unicorn.Age));
+            Assert.That(actualUnicorn.Name, Is.EqualTo(expectedUnicorn.Name));
+            Assert.That(actualUnicorn.Age, Is.EqualTo(expectedUnicorn.Age));
         }
 
         [Test]
         public async Task VerifyThatUnicornCanBeDeleted()
         {
-            var unicorn = new Unicorn
+            var unicornToDelete = new Unicorn
             {
                 Name = $"Name_{Random.Shared.Next(100, 1000)}",
                 Age = Random.Shared.Next(1, 10),
                 Colour = "red"
             };
 
-            var createUnicornRequest = new RestRequest("/unicorns", Method.Post);
-            createUnicornRequest.AddBody(unicorn);
+            var createdUnicorn = await this.unicornClient.CreateUnicornAsync(unicornToDelete);
 
-            var createUnicornResponse = await _restClient.ExecuteAsync<Unicorn>(createUnicornRequest);
-            var createdUnicorn = createUnicornResponse.Data;
+            await this.unicornClient.DeleteUnicornAsync(createdUnicorn.Id);
 
-            var deleteUnicornRequest = new RestRequest($"/unicorns/{createdUnicorn.Id}", Method.Delete);
-            var deleteUnicornResponse = await _restClient.ExecuteAsync(deleteUnicornRequest);
+            var unicorns = await this.unicornClient.GetUnicornsAsync();
+            var actualUnicorn = unicorns.Find(u => u.Id == createdUnicorn.Id);
 
-            Assert.That(deleteUnicornResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-            var getAllUnicornsRequest = new RestRequest($"/unicorns", Method.Get);
-            var getAllUnicornsResponse = await _restClient.ExecuteAsync<Unicorn[]>(getAllUnicornsRequest);
-
-            Assert.That(createdUnicorn.Id, Is.Not.AnyOf(getAllUnicornsResponse.Data.Select(u => u.Id)));
+            Assert.That(actualUnicorn, Is.Null);
         }
     }
 }

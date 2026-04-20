@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace APIAutomatedTesting.src
+namespace APITestAutomation.Tests.src.Models
 {
     public class Unicorn
     {
