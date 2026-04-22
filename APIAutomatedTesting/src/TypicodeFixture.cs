@@ -1,6 +1,5 @@
 ﻿using APITestAutomation.Tests.src.Models;
 using NUnit.Framework;
-using RestSharp;
 using System.Net;
 
 namespace APITestAutomation.Tests.src
