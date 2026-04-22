@@ -1,11 +1,14 @@
-﻿using NUnit.Framework;
+﻿using APITestAutomation.Tests.src.Models;
+using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities.Resources;
+using NUnit.Framework;
+using RestSharp;
 using System.Net;
 
 namespace APITestAutomation.Tests.src
 {
     public class TypicodeFixture
     {
-        private readonly TypicodeClient typicodeClient = new($"https://jsonplaceholder.typicode.com/users");
+        private readonly TypicodeClient typicodeClient = new($"https://jsonplaceholder.typicode.com");
 
         [Test]
         public async Task ValidateThatListOfUsersCanBeReceivedAndFieldsAreNotNullOrEmpty()
@@ -18,7 +21,6 @@ namespace APITestAutomation.Tests.src
             Assert.That(response.Data!.Count, Is.GreaterThan(0));
         }
 
-        //Validate response header for a list of users
         [Test]
         public async Task ValidateResponseHeaderForListOfUsers()
         {
@@ -26,13 +28,10 @@ namespace APITestAutomation.Tests.src
 
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-            Assert.That(response.Headers, Is.Not.Null.And.Not.Empty);
+            Assert.That(response.ContentType, Is.Not.Null);
+            Assert.That(response.ContentType!.ToString(), Is.EqualTo("application/json"));
 
-            var contentTypeHeader = response.Headers!
-                .FirstOrDefault(contentType => contentType.Name.Equals("Content-Type", StringComparison.OrdinalIgnoreCase));
-
-            Assert.That(contentTypeHeader, Is.Not.Null);
-            Assert.That(contentTypeHeader!.Value.ToString(), Is.EqualTo("application/json; charset=utf-8"));
+            Console.WriteLine("Headers: " + string.Join(Environment.NewLine, response.Headers));
         }
 
         [Test]
@@ -58,6 +57,40 @@ namespace APITestAutomation.Tests.src
                     Assert.That(user.Company.Name, Is.Not.Null.And.Not.Empty);
                 }
             });
+        }
+
+        [Test]
+        public async Task ValidateThatUserCanBeCreated()
+        {
+            var userToCreate = new Typicode()
+            {
+                Name = $"Name {Random.Shared.Next(1, 1000)}",
+                Username = $"UserName {Random.Shared.Next(1, 1000)}"
+            };
+
+            var response = await this.typicodeClient.CreateTypicodeResponseAsync(userToCreate);
+            var createdUser = response.Data;
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+
+            Assert.That(createdUser, Is.Not.Null);
+            Assert.That(createdUser?.Id, Is.Not.Null.Or.Not.Empty);
+            Assert.That(createdUser!.Id, Is.GreaterThan(0));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(createdUser.Name, Is.EqualTo(userToCreate.Name));
+                Assert.That(createdUser.Username, Is.EqualTo(userToCreate.Username));
+            });
+        }
+
+        [Test]
+        public async Task ValidateThatUserIsNotifiedIfResourceDoesNotExist()
+        {
+            var response = await this.typicodeClient.ExecuteNotFoundAsync();
+
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(response.Content, Is.EqualTo("{}"));
         }
     }
 }

@@ -35,6 +35,12 @@ namespace APITestAutomation.Tests.src
             return await this._client.PostAsync<Typicode>(request) ?? new Typicode();
         }
 
+        public async Task<RestResponse<Typicode>> CreateTypicodeResponseAsync(Typicode user)
+        {
+            var request = new RestRequest($"/users", Method.Post).AddJsonBody(user);
+            return await this._client.ExecuteAsync<Typicode>(request);
+        }
+
         public async Task<RestResponse> UpdateTypicodeAsync(string id, Typicode user)
         {
             var request = new RestRequest($"/users/{id}", Method.Put).AddJsonBody(user);
@@ -45,6 +51,12 @@ namespace APITestAutomation.Tests.src
         {
             var request = new RestRequest($"/users/{id}", Method.Delete);
             return await this._client.DeleteAsync(request);
+        }
+
+        public async Task<RestResponse> ExecuteNotFoundAsync()
+        {
+            var request = new RestRequest("/invalidendpoint", Method.Get);
+            return await this._client.ExecuteAsync(request);
         }
     }
 }
